@@ -1,6 +1,27 @@
 from typing import Iterable
 
 
+def _tolist(v, dtype):
+    if dtype == set:
+        return list(v)
+    if dtype == dict:
+        return [x[-1] for x in v.items()]
+    return v
+
+
+def _handle_str_bytes(v, dtype1, dtype2):
+    if dtype1 == str:
+        li = _tolist(v, dtype2)
+        return "".join(li)
+    if dtype1 == bytes:
+        li = _tolist(v, dtype2)
+        return bytes(li)
+    if dtype1 == bytearray:
+        li = _tolist(v, dtype2)
+        return bytearray(li)
+    return v
+
+
 def del_duplicates(x: Iterable, /, keep_order: bool = False) -> Iterable:
     r"""
     The function del_duplicates takes an iterable x as input and removes duplicate elements from it.
@@ -56,9 +77,13 @@ def del_duplicates(x: Iterable, /, keep_order: bool = False) -> Iterable:
     if isinstance(x, (dict, set, frozenset)):
         return x
     dtype = type(x)
+    special = [str, bytes, bytearray]
     if not keep_order:
         try:
-            return dtype(set(x))
+            if dtype in special:
+                return _handle_str_bytes(set(x), dtype1=dtype, dtype2=set)
+            else:
+                return dtype(set(x))
         except TypeError:
             keep_order = True
     if keep_order:
@@ -68,5 +93,7 @@ def del_duplicates(x: Iterable, /, keep_order: bool = False) -> Iterable:
                 tmpdict[v] = v
             except TypeError:
                 tmpdict[f"{v}{repr(v)}"] = v
-        return dtype([q[-1] for q in tmpdict.items()])
-
+        if dtype in special:
+            return _handle_str_bytes(tmpdict, dtype1=dtype, dtype2=dict)
+        else:
+            return dtype([q[-1] for q in tmpdict.items()])
